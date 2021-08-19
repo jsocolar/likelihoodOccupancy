@@ -14,7 +14,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Occupancy models are an important class of models for biological survey data. Here, I discuss some subtleties of the likelihood function for occupancy models and the implications for posterior predictive checking and cross-validation. I assume basic familiarity with occupancy models in both their "familiar" and marginalized parametrizations. [See here](https://jsocolar.github.io/closureOccupancy) for basic background on occupancy models and [here](https://jsocolar.github.io/occupancyModels) for an explanation of the marginalized parametrization.
+Occupancy models are an important class of models for biological survey data. Here, I discuss some subtleties of the likelihood function for occupancy models and the implications for posterior predictive checking and cross-validation. I assume basic familiarity with occupancy models in both their "familiar" and marginalized parametrizations. [See here](https://jsocolar.github.io/closureOccupancy) for basic background on occupancy models and [here](https://jsocolar.github.io/marginalizedOccupancy) for an explanation of the marginalized parametrization.
 
 ## Mind your Z's and Q's
 We can think of an occupancy model as a pair of latent logistic regressions, one for occupancy and one for detection, that are united by a likelihood term that depends on both linear predictors.[^1] In the "familiar" parametrization, we introduce a latent quantity $Z_i$ that is a binary indicator for the unknown true occupancy state within a *closure-unit* $i$ (i.e. a site, or in a multispecies model a species-site, or in a dynamic model a site-year). The familiar parametrization looks something like
@@ -36,7 +36,7 @@ where $\psi_i$ and $\theta_{ij}$ are probabilities derived from the occupancy re
 
 [^1]: The pair of regressions might optionally also be united by shared parameters, such as covariance parameters for multivariate random effects that span both sub-models.
 
-To marginalize and eliminate the *unobserved* $Z$ from the likelihood, we introduce an *observed* indicator variable $Q$ to indicate whether the closure-unit had at least one detection. I explain this marginalization in detail and provide examples in both JAGS and Stan [here](https://https://jsocolar.github.io/occupancyModels)[^2]. The marginalized likelihood is easier to express in mathematical form as an explict function rather than via JAGS-style sampling statements (though it can be coded in JAGS using sampling statements!). Below, $BernoulliP(a | b)$ is the Bernoulli probability mass function for observed data $a$ given probability $b$:
+To marginalize and eliminate the *unobserved* $Z$ from the likelihood, we introduce an *observed* indicator variable $Q$ to indicate whether the closure-unit had at least one detection. I explain this marginalization in detail and provide examples in both JAGS and Stan [here](https://jsocolar.github.io/marginalizedOccupancy)[^2]. The marginalized likelihood is easier to express in mathematical form as an explict function rather than via JAGS-style sampling statements (though it can be coded in JAGS using sampling statements!). Below, $BernoulliP(a | b)$ is the Bernoulli probability mass function for observed data $a$ given probability $b$:
 $$
 \begin{equation}
 \mathcal{L_i} =
@@ -48,10 +48,10 @@ $$
 $$
 The marginalized likelihood lays bare three crucial subtleties of occupancy model likelihoods that I believe are underappreciated by practitioners.
 
-[^2]: Note that in the JAGS code [at my explanation of marginalization](https://https://jsocolar.github.io/occupancyModels), $Q$ shows up implicitly; it's encoded via the ordering of the closure-units in the data, rather than as an explicit integer vector.
+[^2]: Note that in the JAGS code [at my explanation of marginalization](https://jsocolar.github.io/marginalizedOccupancy), $Q$ shows up implicitly; it's encoded via the ordering of the closure-units in the data, rather than as an explicit integer vector.
 
 ## Subtleties I: the pointwise likelihood
-The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, *not* at the level of visits. As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of visits. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual visits. It is no accident that the likelihood above is given at the level of closure-units $i$ rather than at the level of repeat visits $ij$. See for yourself; attempt to factor $\mathca{L_i}$ above.  You can't.
+The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, *not* at the level of visits. As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of visits. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual visits. It is no accident that the likelihood above is given at the level of closure-units $i$ rather than at the level of repeat visits $ij$. See for yourself; attempt to factor $\mathcal{L_i}$ above.  You can't.
 
 ## Subtleties II: likelihood, parameters, and "unobserved data"
 The likelihood in an occupancy model does not condition on $Z$. Based on the "familiar" parametrization in JAGS, it is tempting to view $Z$ as a parameter, and indeed the literature often refers to $Z$ as a parameter. But $Z$ is not a parameter in the traditional sense, and the likelihood does not condition on $Z$. The easiest way to see that conditioning the likelihood on $Z$ leads to problems is to consider what would happen in cross-validation at closure-units were $Q_i=1$. At these closure-units, the posterior distribution for $Z_i$ is always a point mass on 1, and so conditioning the likelihood on $Z_i$ does not penalize *at all* for estimating arbitrarily low occupancy probabilities. Therefore, cross-validation based on a likelihood that conditions on $Z$ would favor models that estimate the lowest occupancy probabilities possible (irrespective of the true occupancy probabilities), because those models lead to higher likelihoods at points with no detections, with no penalty at points with detections.
@@ -74,8 +74,9 @@ mydata <- data.frame(y = c(rbinom(nBinomial, nvisit, p), rep(0, nzi)),
                      trials = nvisit)
 
 fit <- brm(y | trials(trials) ~ 1, family = zero_inflated_binomial(), data = mydata,
-                 backend = 'cmdstanr')
-posterior_predict(fit)
+                 backend = 'cmdstanr', refresh = 0)
+head(posterior_predict(fit)[, 1:10])
+tail(posterior_predict(fit)[,1:10])
 ```
 If `brms` were conditioning the posterior predictive distribution on the latent zero-inflation state, we should see nonzero predictions for the first half of the posterior predictions followed by exclusively zero predictions for the second half. But `brms` does not condition the posterior predictive distribution on $Z$, and we see zero and non-zero predictions scattered at random.
 
