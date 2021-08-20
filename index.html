@@ -1517,7 +1517,7 @@ y_{ij} &amp;\sim&amp; \mathrm{Bernoulli}(\theta_{ij}) \\
 D_{ij} &amp;=&amp; Z_i*D_{ij}
 \end{eqnarray}
 \]</span> where <span class="math inline">\(\psi_i\)</span> and <span class="math inline">\(\theta_{ij}\)</span> are probabilities derived from the occupancy regression and detection regression, respectively. Note that in the absence of covariates that vary across visits <span class="math inline">\(j\)</span> within a closure-unit <span class="math inline">\(i\)</span>, we can use a binomial sufficient statistic in place of the repeated Bernoulli term for each visit. In <a href="https://github.com/jsocolar/flocker">R package</a> <code>flocker</code>, we call these binomial models “visit-constant”, as opposed to “visit-varying” models that do not admit a binomial sufficient statistic. Regardless of whether the model is visit-constant or visit-varying, the structure as a pair of logistic regressions remains.</p>
-<p>To marginalize and eliminate the <em>unobserved</em> <span class="math inline">\(Z\)</span> from the likelihood, we introduce an <em>observed</em> indicator variable <span class="math inline">\(Q\)</span> to indicate whether the closure-unit had at least one detection. I explain this marginalization in detail and provide examples in both JAGS and Stan <a href="https://jsocolar.github.io/marginalizedOccupancy">here</a><a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>. The marginalized likelihood is easier to express in mathematical form as an explict function rather than via JAGS-style sampling statements (though it can be coded in JAGS using sampling statements!). Below, <span class="math inline">\(BernoulliP(a | b)\)</span> is the Bernoulli probability mass function for observed data <span class="math inline">\(a\)</span> given probability <span class="math inline">\(b\)</span>: <span class="math display">\[
+<p>To marginalize and eliminate the <em>unobserved</em> <span class="math inline">\(Z\)</span> from the likelihood, we introduce an <em>observed</em> indicator variable <span class="math inline">\(Q\)</span> to indicate whether the closure-unit had at least one detection. I explain this marginalization in detail and provide examples in both JAGS and Stan <a href="https://jsocolar.github.io/marginalizedOccupancy">here</a><a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>. The marginalized likelihood is easier to express in mathematical form as an explict function rather than via JAGS-style sampling statements (though it can be coded in JAGS using sampling statements!). Below, <span class="math inline">\(\mathrm{BernoulliP}(a | b)\)</span> is the Bernoulli probability mass function for observed data <span class="math inline">\(a\)</span> given probability parameter <span class="math inline">\(b\)</span>: <span class="math display">\[
 \begin{equation}
 \mathcal{L_i} =
     \begin{cases}
@@ -1537,8 +1537,8 @@ D_{ij} &amp;=&amp; Z_i*D_{ij}
 <p>The likelihood in an occupancy model does not condition on <span class="math inline">\(Z\)</span>. Based on the “familiar” parametrization in JAGS, it is tempting to view <span class="math inline">\(Z\)</span> as a parameter, and indeed the literature often refers to <span class="math inline">\(Z\)</span> as a parameter. But <span class="math inline">\(Z\)</span> is not a parameter in the traditional sense, and the likelihood does not condition on <span class="math inline">\(Z\)</span>. The easiest way to see that conditioning the likelihood on <span class="math inline">\(Z\)</span> leads to problems is to consider what would happen in cross-validation at closure-units were <span class="math inline">\(Q_i=1\)</span>. At these closure-units, the posterior distribution for <span class="math inline">\(Z_i\)</span> is always a point mass on 1, and so conditioning the likelihood on <span class="math inline">\(Z_i\)</span> does not penalize <em>at all</em> for estimating arbitrarily low occupancy probabilities. Therefore, cross-validation based on a likelihood that conditions on <span class="math inline">\(Z\)</span> would favor models that estimate the lowest occupancy probabilities possible (irrespective of the true occupancy probabilities), because those models lead to higher likelihoods at points with no detections, with no penalty at points with detections.</p>
 <p>So if <span class="math inline">\(Z\)</span> isn’t a parameter, then what is it? Some people call <span class="math inline">\(Z\)</span> <em>unobserved data</em>, and I like this convention. We can distinguish between the so-called <em>full data likelihood</em> <span class="math inline">\(P(y, Z | \psi, \theta)\)</span> (which is unobserved and unknown when <span class="math inline">\(Q_i=0\)</span>), the <em>Z-conditioned likelihood</em> <span class="math inline">\(P(y|Z,\psi,\theta)\)</span>, and the plain old likelihood <span class="math inline">\(\mathcal{L_i} = P(y | \psi, \theta)\)</span>. The full data likelihood is generally unknown, the Z-conditioned likelihood is generally not useful, and only the plain old likelihood is needed for evaluating occupancy models.</p>
 </div>
-<div id="posterior-predictive-distributions" class="section level2">
-<h2>Posterior predictive distributions</h2>
+<div id="subtleties-iii-posterior-predictive-distributions" class="section level2">
+<h2>Subtleties III: Posterior predictive distributions</h2>
 <p>A crucial point is that the posterior predictive distribution for the observed data <span class="math inline">\(y\)</span> uses the likelihood, <em>not</em> the Z-conditioned likelihood. This should make intuitive sense; a posterior predictive check ought not to have access to <em>absolutely certain</em> information about the observed data (in this case <span class="math inline">\(Q\)</span>, which can be directly inferred from the posterior distribution for <span class="math inline">\(Z\)</span> but is clearly observed data, known only <em>a posteriori</em>). The notion that the posterior predictive distribution must not use the Z-conditioned likelihood is standard for zero-inflated models (Poissons, binomials, etc). Here’s an example zero-inflated binomial (which is exactly equivalent to a visit-constant occupancy model) using <code>brms</code></p>
 <pre class="r"><code>library(brms)</code></pre>
 <pre><code>## Loading required package: Rcpp</code></pre>
@@ -1576,25 +1576,24 @@ fit &lt;- brm(y | trials(trials) ~ 1, family = zero_inflated_binomial(), data = 
 ## Total execution time: 1.0 seconds.</code></pre>
 <pre class="r"><code>head(posterior_predict(fit)[, 1:10])</code></pre>
 <pre><code>##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-## [1,]   12   13    0   12    0    0   10    0    9    14
-## [2,]   11    0   12    0   10    9    9   12    0    14
-## [3,]   14   12   14    0    0   11    0   14    0    13
-## [4,]    0    0   13    0    0   11   12    0    0    14
-## [5,]    0    0    0   12    0   13   10    0   15    13
-## [6,]    0    0    0    0   12    0   13   11    0     0</code></pre>
+## [1,]   15    0    0   12   14    0    9    0    0     0
+## [2,]    0    0   13    0   12    0   12   14    0     0
+## [3,]    0    0    0   14    0   12   13   11   11     0
+## [4,]    0   13   13    0   13   12    0    0    0     0
+## [5,]   14   11   14   12    0    0   12    0    0    15
+## [6,]    0    0   12   14    0   11   15   12    0     0</code></pre>
 <pre class="r"><code>tail(posterior_predict(fit)[,1:10])</code></pre>
 <pre><code>##         [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-## [3995,]    0   10   15   12   15   15    0    9   12    12
-## [3996,]   13   13    0   12    0    0   13    0   13     0
-## [3997,]    0   14    0    0    0   12   13   11    0    14
-## [3998,]    0   14    0   11    0    0   13    0    0     0
-## [3999,]   13    0   10    0    0   12   13   14   12    14
-## [4000,]   11    0    0   11   14    0   14   11    0    12</code></pre>
+## [3995,]    0    0   13    0   10   11    0   15    0     0
+## [3996,]   15    8    0    0    0   11    0    0   10     0
+## [3997,]    0    0    0    0   11    0   10    0    0    13
+## [3998,]    0   12    0    0    0    0   10   11    0     0
+## [3999,]    0    0   14    0   13    0   13   11   11     0
+## [4000,]   11    0   14    0    0    0    0    0    0    11</code></pre>
 <p>If <code>brms</code> were conditioning the posterior predictive distribution on the latent zero-inflation state, we should see nonzero predictions for the first half of the posterior predictions followed by exclusively zero predictions for the second half. But <code>brms</code> does not condition the posterior predictive distribution on <span class="math inline">\(Z\)</span>, and we see zero and non-zero predictions scattered at random.</p>
-</div>
-<div id="the-posterior-distribution-for-z" class="section level2">
-<h2>The posterior distribution for Z</h2>
-<p>The posterior distribution for <span class="math inline">\(Z\)</span> remains well defined, and it encodes information about <span class="math inline">\(Q\)</span> with certainty. In the non-marginalized model, the posterior recovered for the latent state <span class="math inline">\(Z\)</span> directly from model fitting is correct (provided that the MCMC fitting converges properly). In the marginalized model, the posterior distribution for <span class="math inline">\(Z_i\)</span> one with probability <span class="math display">\[
+<div id="the-posterior-distribution-for-z" class="section level3">
+<h3>The posterior distribution for Z</h3>
+<p>The posterior distribution for <span class="math inline">\(Z\)</span> remains well defined, and it encodes information about <span class="math inline">\(Q\)</span> with certainty. In the non-marginalized model, the posterior recovered for the latent state <span class="math inline">\(Z\)</span> directly from model fitting is correct (provided that the MCMC fitting converges properly). In the marginalized model, the posterior distribution for <span class="math inline">\(Z_i\)</span> is one with probability <span class="math display">\[
 \begin{equation}
 P(Z_i = 1) =
     \begin{cases}
@@ -1604,6 +1603,7 @@ P(Z_i = 1) =
 \end{equation}
 \]</span></p>
 <p>Note that we cannot obtain the posterior distribution for <span class="math inline">\(Z\)</span> by simply simulating occupancy based on <span class="math inline">\(\psi\)</span>. The posterior distribution for <span class="math inline">\(Z\)</span> conditions on <span class="math inline">\(\psi\)</span>, <span class="math inline">\(\theta\)</span>, <em>and</em> <span class="math inline">\(Q\)</span>.</p>
+</div>
 </div>
 <div class="footnotes">
 <hr />
