@@ -1529,7 +1529,8 @@ D_{ij} &amp;=&amp; Z_i*D_{ij}
 </div>
 <div id="subtleties-i-the-pointwise-likelihood" class="section level2">
 <h2>Subtleties I: the pointwise likelihood</h2>
-<p>The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, <em>not</em> at the level of visits. As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of visits. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual visits. It is no accident that the likelihood above is given at the level of closure-units <span class="math inline">\(i\)</span> rather than at the level of repeat visits <span class="math inline">\(ij\)</span>. See for yourself; attempt to factor <span class="math inline">\(\mathcal{L_i}\)</span> above. You can’t.</p>
+<p>The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, <em>not</em> at the level of visits. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual visits. See for yourself; attempt to factor <span class="math inline">\(\mathcal{L_i}\)</span> above. You can’t.</p>
+<p>As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of visits.</p>
 </div>
 <div id="subtleties-ii-likelihood-parameters-and-unobserved-data" class="section level2">
 <h2>Subtleties II: likelihood, parameters, and “unobserved data”</h2>
@@ -1575,20 +1576,20 @@ fit &lt;- brm(y | trials(trials) ~ 1, family = zero_inflated_binomial(), data = 
 ## Total execution time: 1.0 seconds.</code></pre>
 <pre class="r"><code>head(posterior_predict(fit)[, 1:10])</code></pre>
 <pre><code>##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-## [1,]   13   10    0    0   12    0   13   13    0     0
-## [2,]    0    0    0    0   13   11    0    0   11     0
-## [3,]   12    0    0    0   13   13    0   13   13     9
-## [4,]   11   13    0   12   11    0   11    0    0     9
-## [5,]   11   13   11    0    0    0    0    0    0    10
-## [6,]   13   10   11    0   13    0   12   13    0     0</code></pre>
+## [1,]   12   13    0   12    0    0   10    0    9    14
+## [2,]   11    0   12    0   10    9    9   12    0    14
+## [3,]   14   12   14    0    0   11    0   14    0    13
+## [4,]    0    0   13    0    0   11   12    0    0    14
+## [5,]    0    0    0   12    0   13   10    0   15    13
+## [6,]    0    0    0    0   12    0   13   11    0     0</code></pre>
 <pre class="r"><code>tail(posterior_predict(fit)[,1:10])</code></pre>
 <pre><code>##         [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-## [3995,]    0    0   12   11    0    0    0    0   13     0
-## [3996,]    0    0    0    0    0    0    0   13   11     0
-## [3997,]    9    0    0   10    0   10   12    0   12    13
-## [3998,]    0   15    0    0    0    0   13    0    0     0
-## [3999,]    0    0    0   13    0   13   12    0    0     0
-## [4000,]   11    0   14   15    0    0   11    0    0     0</code></pre>
+## [3995,]    0   10   15   12   15   15    0    9   12    12
+## [3996,]   13   13    0   12    0    0   13    0   13     0
+## [3997,]    0   14    0    0    0   12   13   11    0    14
+## [3998,]    0   14    0   11    0    0   13    0    0     0
+## [3999,]   13    0   10    0    0   12   13   14   12    14
+## [4000,]   11    0    0   11   14    0   14   11    0    12</code></pre>
 <p>If <code>brms</code> were conditioning the posterior predictive distribution on the latent zero-inflation state, we should see nonzero predictions for the first half of the posterior predictions followed by exclusively zero predictions for the second half. But <code>brms</code> does not condition the posterior predictive distribution on <span class="math inline">\(Z\)</span>, and we see zero and non-zero predictions scattered at random.</p>
 </div>
 <div id="the-posterior-distribution-for-z" class="section level2">
