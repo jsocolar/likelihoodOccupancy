@@ -34,7 +34,7 @@ y_{ij} &\sim& \mathrm{Bernoulli}(\theta_{ij}) \\
 D_{ij} &=& Z_i*D_{ij}
 \end{eqnarray}
 $$
-where $\psi_i$ and $\theta_{ij}$ are probabilities derived from the occupancy regression and detection regression, respectively. Note that in the absence of covariates that vary across visits $j$ within a closure-unit $i$, we can use a binomial sufficient statistic in place of the repeated Bernoulli term for each visit. In [R package](https://github.com/jsocolar/flocker) `flocker`, we call these binomial models "visit-constant", as opposed to "visit-varying" models that do not admit a binomial sufficient statistic. Regardless of whether the model is visit-constant or visit-varying, the structure as a pair of logistic regressions remains.
+where $\psi_i$ and $\theta_{ij}$ are probabilities derived from the occupancy regression and detection regression, respectively. Note that in the absence of covariates that vary across repeated sampling events $j$ within a closure-unit $i$, we can use a binomial sufficient statistic in place of the repeated Bernoulli term for each sampling event. In [R package](https://github.com/jsocolar/flocker) `flocker`, we call these binomial models "rep-constant", as opposed to "rep-varying" models that do not admit a binomial sufficient statistic. Regardless of whether the model is rep-constant or rep-varying, the structure as a pair of logistic regressions remains.
 
 [^1]: The pair of regressions might optionally also be united by shared parameters, such as covariance parameters for multivariate random effects that span both sub-models.
 
@@ -53,9 +53,9 @@ The marginalized likelihood lays bare three crucial subtleties of occupancy mode
 [^2]: Note that in the JAGS code [at my explanation of marginalization](https://jsocolar.github.io/marginalizedOccupancy), $Q$ shows up implicitly; it's encoded via the ordering of the closure-units in the data, rather than as an explicit integer vector.
 
 ## Subtleties I: the pointwise likelihood
-The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, *not* at the level of visits. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual visits. See for yourself; attempt to factor $\mathcal{L_i}$ above.  You can't.
+The pointiwse likelihood of an occupancy model intrinsically exists at the level of closure-units, *not* at the level of repeated sampling events. The reason for this is simply that the likelihood does not factor to independent multiplicative contributions at the level of individual sampling events. See for yourself; attempt to factor $\mathcal{L_i}$ above.  You can't.
 
-As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of visits. 
+As a result, cross-validation (even leave-one-out cross-validation) is properly performed by withholding data at the level of closure-units, not at the level of repeated sampling events. 
 
 ## Subtleties II: likelihood, parameters, and "unobserved data"
 The likelihood in an occupancy model does not condition on $Z$. Based on the "familiar" parametrization in JAGS, it is tempting to view $Z$ as a parameter, and indeed the literature often refers to $Z$ as a parameter. But $Z$ is not a parameter in the traditional sense, and the likelihood does not condition on $Z$. The easiest way to see that conditioning the likelihood on $Z$ leads to problems is to consider what would happen in cross-validation at closure-units were $Q_i=1$. At these closure-units, the posterior distribution for $Z_i$ is always a point mass on 1, and so conditioning the likelihood on $Z_i$ does not penalize *at all* for estimating arbitrarily low occupancy probabilities. Therefore, cross-validation based on a "likelihood" that conditions on $Z$ would favor models that estimate the lowest occupancy probabilities possible (irrespective of the true occupancy probabilities), because those models would lead to higher "likelihoods" at points with no detections, with no penalty at points with detections.
@@ -63,19 +63,19 @@ The likelihood in an occupancy model does not condition on $Z$. Based on the "fa
 So if $Z$ isn't a parameter, then what is it? Some people call $Z$ *unobserved data*, and I like this convention. We can distinguish between the so-called *full data likelihood* $P(y, Z | \psi, \theta)$ (which is unobserved and unknown when $Q_i=0$), the *Z-conditioned likelihood* $P(y|Z,\psi,\theta)$, and the plain old likelihood $\mathcal{L_i} = P(y | \psi, \theta)$. The full data likelihood is generally unknown, the Z-conditioned likelihood is generally not useful, and only the plain old likelihood is needed for evaluating occupancy models.
 
 ## Subtleties III: Posterior predictive distributions
-A crucial point is that the posterior predictive distribution for the observed data $y$ uses the likelihood, *not* the Z-conditioned likelihood. This should make intuitive sense; a posterior predictive check ought not to have access to *absolutely certain* information about the observed data (in this case $Q$, which can be directly inferred from the posterior distribution for $Z$ but is clearly observed data, known only *a posteriori*). The notion that the posterior predictive distribution must not use the Z-conditioned likelihood is standard for zero-inflated models (Poissons, binomials, etc).  Here's an example zero-inflated binomial (which is exactly equivalent to a visit-constant occupancy model) using `brms`
+A crucial point is that the posterior predictive distribution for the observed data $y$ uses the likelihood, *not* the Z-conditioned likelihood. This should make intuitive sense; a posterior predictive check ought not to have access to *absolutely certain* information about the observed data (in this case $Q$, which can be directly inferred from the posterior distribution for $Z$ but is clearly observed data, known only *a posteriori*). The notion that the posterior predictive distribution must not use the Z-conditioned likelihood is standard for zero-inflated models (Poissons, binomials, etc).  Here's an example zero-inflated binomial (which is exactly equivalent to a rep-constant occupancy model) using `brms`
 ```{r brms example}
 library(brms)
-N <- 100 # number of sites
-nvisit <- 15 # number of repeat visits (a large number is useful for illustration)
+N <- 100 # number of closure-units
+nrep <- 15 # number of repeat sampling events (a large number is useful for illustration)
 p <- .8 # detection probability
 zi <- .5 # 1 minus occupancy probability
 
-nzi <- rbinom(1, N, zi) # number of unoccupied sites
-nBinomial <- N - nzi # number of occupied sites
+nzi <- rbinom(1, N, zi) # number of unoccupied units
+nBinomial <- N - nzi # number of occupied units
 
-mydata <- data.frame(y = c(rbinom(nBinomial, nvisit, p), rep(0, nzi)),
-                     trials = nvisit)
+mydata <- data.frame(y = c(rbinom(nBinomial, nrep, p), rep(0, nzi)),
+                     trials = nrep)
 
 fit <- brm(y | trials(trials) ~ 1, family = zero_inflated_binomial(), data = mydata,
                  backend = 'cmdstanr', refresh = 0)
